@@ -34,6 +34,13 @@ def get_parser(**parser_kwargs):
 
     parser = argparse.ArgumentParser(**parser_kwargs)
     parser.add_argument(
+        "--finetune_from",
+        type=str,
+        nargs="?",
+        default="",
+        help="path to checkpoint to load model state from"
+    )
+    parser.add_argument(
         "-n",
         "--name",
         type=str,
@@ -250,7 +257,7 @@ class SetupCallback(Callback):
 
     def on_keyboard_interrupt(self, trainer, pl_module):
         if trainer.global_rank == 0:
-            print("Summoning checkpoint.")
+            print("Summoning checkpoint at.", self.ckptdir)
             ckpt_path = os.path.join(self.ckptdir, "last.ckpt")
             trainer.save_checkpoint(ckpt_path)
 
@@ -533,6 +540,12 @@ if __name__ == "__main__":
 
         # model
         model = instantiate_from_config(config.model)
+        if not opt.finetune_from == "":
+            print(f"Attempting to load state from {opt.finetune_from}")
+            old_state = torch.load(opt.finetune_from, map_location="cpu")
+            if "state_dict" in old_state:
+                print(f"Loading state dict....")
+                model.load_state_dict(old_state["state_dict"], strict=False)
 
         # trainer and callbacks
         trainer_kwargs = dict()
